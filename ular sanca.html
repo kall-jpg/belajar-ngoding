@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Game Ular 170ms</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        canvas { background: #111; display: block; margin: 10px auto; border: 2px solid lime; max-width: 95vw; }
+        body { text-align: center; color: white; background: #222; font-family: sans-serif; margin: 0; padding: 10px; }
+        #scoreboard { font-size: 20px; margin-bottom: 10px; }
+        #controls {
+            display: grid; grid-template-columns: 70px 70px 70px; grid-template-rows: 70px 70px 70px;
+            gap: 8px; justify-content: center; margin-top: 15px;
+        }
+    .btn {
+            width: 70px; height: 70px; background: #333; color: lime;
+            border: 2px solid lime; border-radius: 15px; font-size: 28px; font-weight: bold;
+            touch-action: manipulation;
+        }
+    .btn:active { background: lime; color: #222; transform: scale(0.95); }
+        #up { grid-column: 2; grid-row: 1; }
+        #left { grid-column: 1; grid-row: 2; }
+        #right { grid-column: 3; grid-row: 2; }
+        #down { grid-column: 2; grid-row: 3; }
+    </style>
+</head>
+<body>
+    <h1>🐍 Game Ular</h1>
+    <canvas id="game" width="400" height="400"></canvas>
+    <div id="scoreboard">Skor: <span id="score">0</span> | Highscore: <span id="highscore">0</span></div>
+
+    <div id="controls">
+        <button class="btn" id="up">▲</button>
+        <button class="btn" id="left">◀</button>
+        <button class="btn" id="right">▶</button>
+        <button class="btn" id="down">▼</button>
+    </div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const grid = 20;
+
+let snake = [{x: 200, y: 200}];
+let direction = "RIGHT";
+let food = randomFood();
+let score = 0;
+let speed = 170; // <- UDAH DIGANTI JADI 170MS
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playBeep(freq, duration){
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = freq;
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+let highscore = localStorage.getItem("snakeHighscore") || 0;
+document.getElementById("highscore").innerText = highscore;
+
+function setDirection(dir){
+    if(dir=="LEFT" && direction!="RIGHT") direction="LEFT";
+    else if(dir=="RIGHT" && direction!="LEFT") direction="RIGHT";
+    else if(dir=="UP" && direction!="DOWN") direction="UP";
+    else if(dir=="DOWN" && direction!="UP") direction="DOWN";
+}
+
+document.addEventListener("keydown", e => {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    if(e.key == "ArrowLeft") setDirection("LEFT");
+    if(e.key == "ArrowRight") setDirection("RIGHT");
+    if(e.key == "ArrowUp") setDirection("UP");
+    if(e.key == "ArrowDown") setDirection("DOWN");
+});
+
+["up","down","left","right"].forEach(id => {
+    document.getElementById(id).onclick = () => {
+        audioCtx.resume();
+        setDirection(id.toUpperCase());
+    }
+    document.getElementById(id).addEventListener("touchstart", e => {
+        e.preventDefault();
+        audioCtx.resume();
+        setDirection(id.toUpperCase());
+    })
+})
+
+function gameOver(){
+    playBeep(150, 0.5);
+    if(score > highscore){
+        highscore = score;
+        localStorage.setItem("snakeHighscore", highscore);
+        document.getElementById("highscore").innerText = highscore;
+        alert("🎉 REKOR BARU! " + highscore);
+    } else {
+        alert("Game Over! Skor: " + score);
+    }
+    snake = [{x: 200, y: 200}];
+    score = 0;
+    direction = "RIGHT";
+    document.getElementById("score").innerText = score;
+    food = randomFood();
+}
+
+function moveSnake(){
+    let head = {x: snake[0].x, y: snake[0].y};
+    if(direction == "LEFT") head.x -= grid;
+    if(direction == "RIGHT") head.x += grid;
+    if(direction == "UP") head.y -= grid;
+    if(direction == "DOWN") head.y += grid;
+
+    if(head.x < 0 || head.x >= 400 || head.y < 0 || head.y >= 400){ gameOver(); return; }
+    for(let i = 0; i < snake.length; i++){
+        if(head.x == snake[i].x && head.y == snake[i].y){ gameOver(); return; }
+    }
+
+    if(head.x == food.x && head.y == food.y){
+        playBeep(600, 0.12);
+        score++;
+        document.getElementById("score").innerText = score;
+        food = randomFood();
+    } else {
+        snake.pop();
+    }
+    snake.unshift(head);
+}
+
+function randomFood(){
+    let newFood;
+    do {
+        newFood = { x: Math.floor(Math.random() * 20) * grid, y: Math.floor(Math.random() * 20) * grid }
+    } while(snake.some(part => part.x == newFood.x && part.y == newFood.y));
+    return newFood;
+}
+
+function draw(){
+    ctx.clearRect(0, 0, 400, 400);
+    ctx.fillStyle = "red";
+    ctx.fillRect(food.x, food.y, grid, grid);
+    snake.forEach((part, index) => {
+        ctx.fillStyle = index == 0? "darkgreen" : "lime";
+        ctx.fillRect(part.x, part.y, grid, grid);
+    });
+}
+
+let gameInterval = setInterval(() => { moveSnake(); draw(); }, speed);
+</script>
+</body>
+</html>
